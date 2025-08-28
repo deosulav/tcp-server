@@ -16,7 +16,11 @@ int main() {
   hints.ai_flags = AI_PASSIVE;
 
   struct addrinfo* bindAddress;
-  getaddrinfo(0, "8080", &hints, &bindAddress);
+  int error = getaddrinfo(0, "8080", &hints, &bindAddress);
+  if (error) {
+    fprintf(stderr , "getaddrinfo() failed\n");
+    return 1;
+  }
 
   SOCKET socketListen;
   socketListen = socket(bindAddress->ai_family, bindAddress->ai_socktype, bindAddress->ai_protocol);
@@ -68,7 +72,7 @@ int main() {
       "HTTP/1.1 200 OK\r\n"
       "Connection: close\r\n"
       "Content-Type: text/plain\r\n\r\n"
-      "Local tome is: ";
+      "Local time is: ";
   int bytesSent = send(socketClient, response, strlen(response), 0);
   printf("Send %d of %d bytes.\n", bytesSent, (int)strlen(response));
 
