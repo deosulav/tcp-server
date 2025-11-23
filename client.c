@@ -1,29 +1,22 @@
-#include <_stdio.h>
-#include <netdb.h>
 #include <stdio.h>
-#include <sys/_types/_fd_def.h>
 #if defined(_WIN32)
 #include <conio.h>
 #endif
-
 #include "socket/socket.h"
 #include <string.h>
 #include <time.h>
 
-int main() {
-  if (socketSetup() < 0) {
-    fprintf(stderr, "Failed to initialize.\n");
-  }
-
+SOCKET serverConnect(const char *restrict node, const char *restrict service) {
+  printf("Connecting...\n");
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
   hints.ai_socktype = SOCK_STREAM;
 
   struct addrinfo *bindAddress;
-  int error = getaddrinfo("example.com", "80", &hints, &bindAddress);
+  int error = getaddrinfo(node, service, &hints, &bindAddress);
   if (error) {
     fprintf(stderr, "getaddrinfo() failed\n");
-    return 1;
+    return INVALID_SOCKET;
   }
 
   char addressBuffer[100], serviceBuffer[100];
@@ -36,18 +29,31 @@ int main() {
                          bindAddress->ai_protocol);
   if (!isValidSocket(socketConnect)) {
     fprintf(stderr, "socket() failed(% d)\n", getSocketErrNo());
-    return 1;
+    freeaddrinfo(bindAddress);
+    return INVALID_SOCKET;
   }
 
-  if (connect(socketConnect, bindAddress->ai_addr, bindAddress->ai_addrlen) <
-      0) {
+  if (connect(socketConnect, bindAddress->ai_addr, bindAddress->ai_addrlen)) {
     fprintf(stderr, "connect() failed, (%d) %s\n", getSocketErrNo(),
             strerror(getSocketErrNo()));
-    return 1;
+    freeaddrinfo(bindAddress);
+    return INVALID_SOCKET;
   }
   freeaddrinfo(bindAddress);
 
   printf("Connected...\n");
+  return socketConnect;
+}
+
+int main() {
+  if (socketSetup() < 0) {
+    fprintf(stderr, "Failed to initialize.\n");
+  }
+
+  SOCKET socketConnect = serverConnect("localhost", "8080");
+  if (!isValidSocket(socketConnect)) {
+    return 1;
+  }
   while (1) {
     fd_set reads;
     FD_ZERO(&reads);
@@ -75,8 +81,10 @@ int main() {
     }
     if (FD_ISSET(0, &reads)) {
       char read[4096];
-      if (!fgets(read, 4096, stdin))
+      if (!fgets(read, 4096, stdin)) {
+        printf("fgets() failed.\n");
         break;
+      }
       printf("Sending: %s", read);
       int bytes_sent = send(socketConnect, read, strlen(read), 0);
       printf("Sent %d bytes.\n", bytes_sent);

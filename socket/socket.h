@@ -23,6 +23,7 @@
 #define closeSocket(s) closesocket(s)
 #define getSocketErrNo() (WSAGetLastError())
 #else
+#define INVALID_SOCKET -1
 #define isValidSocket(s) ((s) >= 0)
 #define closeSocket(s) close(s)
 #define SOCKET int
